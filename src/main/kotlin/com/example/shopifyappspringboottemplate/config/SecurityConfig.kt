@@ -18,5 +18,6 @@ class SecurityConfig {
         .httpBasic().disable()
         .formLogin().disable()
         .addFilterAfter(HMACVerificationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
+        .addFilterAfter(SessionStateFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
         .build()
 }

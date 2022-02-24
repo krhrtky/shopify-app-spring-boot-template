@@ -9,9 +9,11 @@ import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.bodyToMono
+import org.springframework.web.server.WebSession
 import org.springframework.web.util.UriComponentsBuilder
 import reactor.core.publisher.Mono
 import java.net.URI
+import kotlin.random.Random
 
 @RestController
 @RequestMapping("/shopifyApp")
@@ -20,14 +22,25 @@ class ShopifyAppController {
     @GetMapping("/install")
     fun install(
         @RequestParam(value = "shop") shop: String?,
+        session: WebSession,
     ): Mono<ResponseEntity<Void>> = if (shop == null) {
         Mono.just(ResponseEntity.badRequest().build())
     } else {
+        val charPool = ('a'..'z') + ('A'..'Z') + ('0'..'9')
+
+        val randomString = (1..20)
+            .map { Random.nextInt(0, charPool.size) }
+            .map(charPool::get)
+            .joinToString("")
+
+        session.attributes["state"] = randomString
+
         val redirectUrl =
             UriComponentsBuilder.fromHttpUrl("https://$shop/admin/oauth/authorize")
                 .queryParam("client_id", System.getenv("SHOPIFY_APP_API_KEY"))
                 .queryParam("scope", "read_products,write_products")
                 .queryParam("redirect_uri", "${System.getenv("SHOPIFY_APP_DOMAIN")}/shopifyApp/callback")
+                .queryParam("state", randomString)
                 .build()
                 .toUri()
 
@@ -42,6 +55,7 @@ class ShopifyAppController {
     fun callback(
         @RequestParam("shop") shop: String?,
         @RequestParam("code") code: String?,
+        session: WebSession,
     ): Mono<ResponseEntity<Void>> = if (shop == null || code == null) {
         Mono.just(ResponseEntity.badRequest().build())
     } else {
@@ -59,6 +73,9 @@ class ShopifyAppController {
             )
             .retrieve()
             .bodyToMono<HashMap<String, String>>()
+            .doOnNext {
+                session.attributes.remove("state")
+            }
             .log()
             .thenReturn(
                 ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
