@@ -1,0 +1,14 @@
+version: '3'
+
+services:
+  redis:
+    image: redis:6.2.6
+    container_name: shopify-app-spring-boot-template-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: always
+
+volumes:
+  redis_data:
